@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Castle Lane Battles 1001</title>
+<script src="/socket.io/socket.io.js"></script>
+<style>
+  :root {
+    --bg: #12151c;
+    --panel: #1c212c;
+    --panel-light: #262d3d;
+    --text: #f0f4f8;
+    --muted: #94a3b8;
+    --gold: #fbbf24;
+    --star: #38bdf8;
+    --common: #e2e8f0;
+    --rare: #3b82f6;
+    --epic: #a855f7;
+    --legendary: #eab308;
+    --btn-blue: #0284c7;
+    --btn-green: #16a34a;
+    --btn-dark-green: #14532d;
+    --btn-white: #f8fafc;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    background: var(--panel);
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #2e3748;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .title { font-size: 20px; font-weight: 800; letter-spacing: 0.5px; }
+  .resources { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  .badge {
+    background: var(--panel-light);
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 14px;
+    border: 1px solid #384358;
+  }
+  .coins { color: var(--gold); }
+
+  button {
+    cursor: pointer;
+    border: none;
+    border-radius: 6px;
+    font-weight: 700;
+    color: white;
+    transition: transform 0.1s, opacity 0.15s;
+  }
+  button:active { transform: scale(0.96); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-nav { padding: 9px 16px; background: var(--panel-light); font-size: 14px; }
+  .btn-nav.active { background: var(--btn-blue); }
+  .btn-cloud { padding: 9px 12px; background: #065f46; font-size: 12px; border: 1px solid #10b981; }
+
+  .battle-modes-box { display: flex; gap: 8px; align-items: center; }
+  .battle-launch-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: #131720;
+    padding: 5px 10px;
+    border-radius: 10px;
+    border: 1px solid #334155;
+    gap: 4px;
+  }
+  .stage-selector { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 800; color: var(--star); }
+  .btn-stage-step { background: var(--panel-light); color: var(--text); padding: 1px 7px; font-size: 12px; border-radius: 4px; border: 1px solid #475569; }
+  
+  .btn-campaign { padding: 8px 18px; background: var(--btn-white); color: #0f172a; font-size: 14px; box-shadow: 0 2px 8px rgba(255, 255, 255, 0.2); }
+  .btn-matchmaking { padding: 8px 18px; background: var(--btn-dark-green); color: #f0fdf4; font-size: 14px; border: 1px solid #22c55e; box-shadow: 0 2px 8px rgba(20, 83, 45, 0.5); }
+
+  .screen { display: none; padding: 20px; max-width: 1250px; width: 100%; margin: 0 auto; flex: 1; }
+  .screen.active { display: block; }
+
+  .castle-bar {
+    background: var(--panel);
+    border: 1px solid #334155;
+    border-radius: 12px;
+    padding: 15px 20px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+  }
+  .castle-info { display: flex; align-items: center; gap: 15px; }
+  .castle-icon { font-size: 40px; }
+  .btn-upgrade { background: #d97706; padding: 10px 16px; font-size: 13px; }
+
+  .section-title { font-size: 16px; margin-bottom: 10px; color: var(--muted); font-weight: 700; text-transform: uppercase; }
+  .deck-slots {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 10px;
+    background: var(--panel);
+    padding: 15px;
+    border-radius: 12px;
+    margin-bottom: 25px;
+    border: 1px solid #334155;
+  }
+
+  .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 16px; }
+
+  .card {
+    background: var(--panel);
+    border-radius: 12px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    position: relative;
+    border: 3px solid var(--common);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  }
+  .card.rarity-Common { border-color: var(--common); }
+  .card.rarity-Rare { border-color: var(--rare); }
+  .card.rarity-Epic { border-color: var(--epic); }
+  .card.rarity-Legendary { border-color: var(--legendary); }
+
+  .card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .star-cost { background: #0f172a; color: var(--star); padding: 3px 8px; border-radius: 6px; font-weight: 800; font-size: 13px; border: 1px solid var(--star); }
+  .card-lvl { font-size: 13px; font-weight: 700; color: var(--gold); }
+
+  .card-img-box {
+    height: 110px;
+    background: #131720;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 10px;
+    overflow: hidden;
+    padding: 6px;
+  }
+  .card-img-box img { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+  .card-name { font-size: 16px; font-weight: 800; text-align: center; margin-bottom: 4px; }
+  .card-rarity-label { font-size: 11px; text-align: center; color: var(--muted); margin-bottom: 10px; }
+
+  .card-actions { display: flex; flex-direction: column; gap: 6px; }
+  .btn-preview { background: #0ea5e9; padding: 7px; font-size: 13px; }
+  .btn-deck-toggle { background: #475569; padding: 7px; font-size: 13px; }
+  .btn-deck-toggle.in-deck { background: #dc2626; }
+  .btn-card-upg { background: #15803d; padding: 7px; font-size: 12px; }
+
+  #battle-screen { padding: 10px 20px; }
+  .battle-hud {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--panel);
+    padding: 10px 18px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #334155;
+  }
+  .hp-box { font-size: 16px; font-weight: 800; }
+  .hp-player { color: #4ade80; }
+  .hp-enemy { color: #f87171; }
+
+  .canvas-wrapper { width: 100%; background: #1e293b; border-radius: 12px; overflow: hidden; border: 2px solid #334155; position: relative; }
+  canvas { display: block; width: 100%; height: auto; cursor: pointer; }
+
+  .battle-controls { margin-top: 12px; background: var(--panel); padding: 12px; border-radius: 12px; border: 1px solid #334155; }
+  .stars-bar-wrap { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .stars-text { font-size: 16px; font-weight: 800; color: var(--star); min-width: 135px; }
+  .stars-progress { flex: 1; height: 14px; background: #0f172a; border-radius: 7px; overflow: hidden; border: 1px solid #334155; }
+  .stars-fill { height: 100%; background: linear-gradient(90deg, #0284c7, #38bdf8); width: 6.66%; transition: width 0.05s linear; }
+
+  .hand-cards { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; }
+  .hand-card {
+    min-width: 105px;
+    background: var(--panel-light);
+    border-radius: 10px;
+    padding: 8px;
+    text-align: center;
+    cursor: pointer;
+    border: 3px solid var(--common);
+    transition: transform 0.1s, box-shadow 0.1s;
+    position: relative;
+  }
+  .hand-card.selected { transform: translateY(-6px); box-shadow: 0 0 15px rgba(56, 189, 248, 0.8); }
+  .hand-card.disabled { opacity: 0.45; cursor: not-allowed; }
+  .hand-card img { width: 52px; height: 52px; object-fit: contain; display: block; margin: 4px auto; }
+  .hand-card-name { font-size: 12px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hand-card-cost { font-size: 12px; font-weight: 800; color: var(--star); }
+
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 100; align-items: center; justify-content: center; padding: 20px; }
+  .modal-overlay.open { display: flex; }
+  .modal-box { background: var(--panel); border-radius: 14px; max-width: 480px; width: 100%; padding: 22px; border: 2px solid #475569; text-align: center; }
+  .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .modal-close { background: #dc2626; padding: 6px 12px; font-size: 14px; }
+
+  .battle-result {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.88);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    z-index: 20;
+  }
+  .battle-result.show { display: flex; }
+  .result-title { font-size: 36px; font-weight: 900; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="title">🏰 CASTLE LANES 1001</div>
+  <div class="resources">
+    <div class="badge coins">💰 Монеты: <span id="coins-display">1000000000000</span></div>
+    <button class="btn-nav active" id="nav-deck" onclick="switchScreen('deck')">Колода (<span id="deck-count">8</span>/8)</button>
+    
+    <div class="battle-modes-box">
+      <div class="battle-launch-box">
+        <div class="stage-selector">
+          <button class="btn-stage-step" id="btn-prev-stage" onclick="changeStage(-1)">◀</button>
+          <span>Ур. <span id="stage-display">1</span> / 1000</span>
+          <button class="btn-stage-step" id="btn-next-stage" onclick="changeStage(1)">▶</button>
+        </div>
+        <button class="btn-campaign" onclick="startCampaignBattle()">Кампания</button>
+      </div>
+      <button class="btn-matchmaking" onclick="findMultiplayerMatch()">Найти противника</button>
+    </div>
+
+    <button class="btn-cloud" onclick="syncWithOldServer(true)" title="Загрузить со старого сайта">☁️ Облако</button>
+  </div>
+</header>
+
+<div class="screen active" id="deck-screen">
+  <div class="castle-bar">
+    <div class="castle-info">
+      <div class="castle-icon">🏰</div>
+      <div>
+        <div style="font-size: 18px; font-weight: 800;">Ваш Замок — Уровень <span id="castle-lvl">1</span> / 1001</div>
+        <div style="font-size: 14px; color: #4ade80; font-weight: 700;">❤️ Здоровье замка: <span id="castle-hp">1000</span> HP</div>
+      </div>
+    </div>
+    <button class="btn-upgrade" id="btn-upg-castle" onclick="upgradeCastle()">
+      Улучшить Замок (Ур. 2) — <span id="castle-cost">0.001</span> 💰
+    </button>
+  </div>
+
+  <div class="section-title">Текущая боевая колода (нажмите на карту, чтобы убрать)</div>
+  <div class="deck-slots" id="active-deck-container"></div>
+
+  <div class="section-title">Все доступные карты</div>
+  <div class="cards-grid" id="all-cards-container"></div>
+</div>
+
+<div class="screen" id="battle-screen">
+  <div class="battle-hud">
+    <div class="hp-box hp-player">🏰 Ваш Замок (Ур.<span id="b-p-lvl">1</span>): <span id="b-p-hp">1000</span> HP</div>
+    <div style="font-size: 14px; font-weight: 800; color: var(--star);" id="battle-mode-title">Кампания — Уровень 1</div>
+    <div class="hp-box hp-enemy">🏰 Враг (Ур.<span id="b-e-lvl">1</span>): <span id="b-e-hp">1000</span> HP</div>
+    <button class="btn-nav" style="background:#dc2626;" onclick="endBattle()">Сдаться</button>
+  </div>
+
+  <div class="canvas-wrapper">
+    <canvas id="gameCanvas" width="1200" height="450"></canvas>
+    <div class="battle-result" id="battle-result">
+      <div class="result-title" id="result-title">ПОБЕДА!</div>
+      <div id="result-reward" style="font-size: 18px; color: var(--gold); font-weight: 700;"></div>
+      <div style="display:flex; gap:12px;">
+        <button class="btn-campaign" id="btn-next-battle" onclick="startCampaignBattle()">Следующий уровень ⚔️</button>
+        <button class="btn-nav" onclick="switchScreen('deck')">В меню колоды</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="battle-controls">
+    <div class="stars-bar-wrap">
+      <div class="stars-text">⭐ Stars: <span id="b-stars">1</span> / 15</div>
+      <div class="stars-progress">
+        <div class="stars-fill" id="b-stars-fill"></div>
+      </div>
+      <div style="font-size: 12px; color: var(--muted);">+1 ⭐ каждые 2.7 сек</div>
+    </div>
+    <div class="hand-cards" id="battle-hand"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="preview-modal" onclick="closePreview(event)">
+  <div class="modal-box" onclick="event.stopPropagation()" style="text-align: left;">
+    <div class="modal-header">
+      <h2 id="m-title" style="font-size: 20px;">Карта</h2>
+      <button class="modal-close" onclick="closePreview()">✕ Закрыть</button>
+    </div>
+    <div class="preview-top">
+      <img id="m-img" src="" alt="">
+      <div>
+        <div id="m-rarity" style="font-weight: 800; font-size: 14px; margin-bottom: 4px;"></div>
+        <div id="m-level" style="color: var(--gold); font-weight: 700; font-size: 15px; margin-bottom: 4px;"></div>
+        <div id="m-stars" style="color: var(--star); font-weight: 800; font-size: 15px;"></div>
+      </div>
+    </div>
+    <div class="preview-desc" id="m-desc"></div>
+    <table class="stats-table" id="m-stats"></table>
+  </div>
+</div>
+
+<script>
+const socket = io();
+
+function fmt(num) {
+  if (num === undefined || num === null) return '0';
+  let fixed = Number(num).toFixed(5);
+  return parseFloat(fixed).toString();
+}
+
+const CARDS_DB = [
+  { id: 'steve', name: 'Steve', rarity: 'Common', stars: 2, type: 'unit', sprite: 'steve.png', spriteW: 212, spriteH: 448, scale: 1.0, hp: 20, damage: 1, armor: 0, speed: 1.8, hitSpeed: 1.0, firstHit: 0.1, range: 1.2, desc: 'Обычный выживший из кубического мира.' },
+  { id: 'zombie', name: 'Zombie', rarity: 'Common', stars: 2, type: 'unit', sprite: 'zombie.png', spriteW: 150, spriteH: 250, scale: 1.0, hp: 20, damage: 3, armor: 0.5, speed: 1.8, hitSpeed: 1.0, firstHit: 0.1, range: 1.2, desc: 'Нежить с лёгкой броней.' },
+  { id: 'skeleton', name: 'Skeleton', rarity: 'Common', stars: 3, type: 'unit', sprite: 'skeleton.png', spriteW: 150, spriteH: 277, scale: 1.0, hp: 20, damage: 4, armor: 0, speed: 1.8, hitSpeed: 2.5, firstHit: 0.1, range: 5.5, projSprite: 'arr.png', projW: 296, projH: 105, projScale: 0.75, desc: 'Дальнобойный лучник.' },
+  { id: 'golem', name: 'Iron Golem', rarity: 'Rare', stars: 4, type: 'unit', sprite: 'golem.png', spriteW: 150, spriteH: 282, scale: 1.0, hp: 100, damage: 19, armor: 2.5, speed: 1.8, hitSpeed: 1.9, firstHit: 0.1, range: 2.5, desc: 'Тяжёлый металлический защитник.' },
+  { id: 'warden', name: 'Warden', rarity: 'Epic', stars: 6, type: 'unit', sprite: 'warden.png', spriteW: 405, spriteH: 650, scale: 1.25, hp: 500, damage: 30, armor: 2.5, speed: 1.8, hitSpeed: 1.5, firstHit: 0.5, range: 2.2, desc: 'Хранитель глубин.' },
+  { id: 'heavy', name: 'Heavy', rarity: 'Epic', stars: 6, type: 'unit', sprite: 'heavy.png', enemySprite: 'blue_heavy.png', spriteW: 350, spriteH: 350, enemySpriteW: 403, enemySpriteH: 620, scale: 1.18, hp: 300, damage: 10, armor: 1.2, speed: 1.5, hitSpeed: 0.105, firstHit: 0.0, range: 6.2, yellowTracer: true, desc: 'Пулемётчик из TF2.' },
+  { id: 't34', name: 'T-34', rarity: 'Legendary', stars: 14, type: 'unit', sprite: 't34.png', spriteW: 588, spriteH: 192, scale: 1.54, hp: 3182, damage: 274, armor: 9.81, speed: 1.5, hitSpeed: 7.5, firstHit: 0.0, range: 7.8, yellowTracer: true, desc: 'Легендарный средний танк Т-34.' },
+  { id: 'peashooter', name: 'Peashooter', rarity: 'Common', stars: 3, type: 'unit', sprite: 'pea.png', spriteW: 442, spriteH: 446, scale: 1.0, hp: 50, damage: 5, armor: 0, speed: 0, hitSpeed: 1.0, firstHit: 0.5, range: 12.3, projSprite: 'pe.png', projW: 28, projH: 28, projScale: 0.75, desc: 'Неподвижная турель.' },
+  { id: 'zombies_pack', name: 'Zombies', rarity: 'Common', stars: 5, type: 'spell_spawn', sprite: 'zombie.png', spriteW: 150, spriteH: 250, spawnUnitId: 'zombie', perLane: 1, desc: 'Призывает 3 Зомби.' },
+  { id: 'skeletons_pack', name: 'Skeletons', rarity: 'Rare', stars: 7, type: 'spell_spawn', sprite: 'skeleton.png', spriteW: 150, spriteH: 277, spawnUnitId: 'skeleton', perLane: 1, desc: 'Призывает 3 Скелетов.' },
+  { id: 'zombie_swarm', name: 'Zombie Swarm', rarity: 'Epic', stars: 13, type: 'spell_spawn', sprite: 'zombie.png', spriteW: 150, spriteH: 250, spawnUnitId: 'zombie', perLane: 3, desc: 'Нашествие зомби.' }
+];
+
+const RARITY_BASE_COST = { Common: 0.01, Rare: 0.1, Epic: 1, Legendary: 1000 };
+const RARITY_COLORS = { Common: '#e2e8f0', Rare: '#3b82f6', Epic: '#a855f7', Legendary: '#eab308' };
+
+let state = {
+  coins: 1000000000000,
+  castleLevel: 1,
+  currentStage: 1,
+  maxUnlockedStage: 1,
+  levels: {},
+  deck: ['steve', 'zombie', 'skeleton', 'golem', 'warden', 'heavy', 'peashooter', 't34']
+};
+
+CARDS_DB.forEach(c => { state.levels[c.id] = 1; });
+
+let userId = localStorage.getItem('castle_lanes_userid');
+if (!userId) {
+  userId = 'user_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
+  localStorage.setItem('castle_lanes_userid', userId);
+}
+
+const LOCAL_KEY = 'castle_lanes_cross_server_sync';
+const OLD_SERVER_URL = 'https://testgames338.onrender.com';
+
+function saveGame() {
+  try {
+    localStorage.setItem(LOCAL_KEY, JSON.stringify(state));
+    fetch('/api/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, data: state })
+    }).catch(() => {});
+  } catch (e) {}
+}
+
+function loadGame() {
+  try {
+    const saved = localStorage.getItem(LOCAL_KEY);
+    if (saved) {
+      applyLoadedState(JSON.parse(saved));
+    }
+  } catch (e) {}
+
+  // Автоматически тянем со старого сайта при старте
+  syncWithOldServer(false);
+}
+
+function applyLoadedState(parsed) {
+  if (parsed && parsed.levels) {
+    if (parsed.coins !== undefined) state.coins = parsed.coins;
+    if (parsed.castleLevel !== undefined) state.castleLevel = parsed.castleLevel;
+    if (parsed.currentStage !== undefined) state.currentStage = parsed.currentStage;
+    if (parsed.maxUnlockedStage !== undefined) state.maxUnlockedStage = parsed.maxUnlockedStage;
+    if (parsed.deck) state.deck = parsed.deck;
+    if (parsed.levels) Object.assign(state.levels, parsed.levels);
+    renderDeckScreen();
+  }
+}
+
+function syncWithOldServer(showAlert = false) {
+  fetch(`${OLD_SERVER_URL}/api/load/${userId}`)
+    .then(res => res.json())
+    .then(res => {
+      if (res.success && res.data) {
+        applyLoadedState(res.data);
+        localStorage.setItem(LOCAL_KEY, JSON.stringify(res.data));
+        if (showAlert) alert('Прогресс успешно загружен со старого сайта testgames338!');
+      } else if (showAlert) {
+        alert('На старом сервере нет сохранений. Возможно, старый сервер заснул — подождите полминуты и попробуйте снова.');
+      }
+    })
+    .catch(() => {
+      if (showAlert) alert('Не удалось связаться со старым сервером (возможно, он в спящем режиме).');
+    });
+}
+
+loadGame();
+
+const IMAGES = {};
+CARDS_DB.forEach(c => {
+  if (c.sprite) { const img = new Image(); img.src = c.sprite; IMAGES[c.sprite] = img; }
+  if (c.enemySprite) { const img = new Image(); img.src = c.enemySprite; IMAGES[c.enemySprite] = img; }
+  if (c.projSprite) { const img = new Image(); img.src = c.projSprite; IMAGES[c.projSprite] = img; }
+});
+
+function getUpgradeCost(baseCost, lvl) {
+  if (lvl >= 1001) return Infinity;
+  return baseCost * Math.pow(1.02, lvl - 1);
+}
+function getStatMultiplier(lvl) { return Math.pow(1.02, lvl - 1); }
+function getCastleMaxHP(lvl) { return 1000 * getStatMultiplier(lvl); }
+
+function getCardScaledStats(card, lvl) {
+  const mult = getStatMultiplier(lvl);
+  if (card.type === 'spell_spawn') {
+    const baseUnit = CARDS_DB.find(u => u.id === card.spawnUnitId);
+    return { ...baseUnit, hp: baseUnit.hp * mult, damage: baseUnit.damage * mult, perLane: card.perLane };
+  }
+  return { ...card, hp: card.hp * mult, damage: card.damage * mult };
+}
+
+function changeStage(delta) {
+  const next = state.currentStage + delta;
+  if (next >= 1 && next <= state.maxUnlockedStage && next <= 1000) {
+    state.currentStage = next;
+    saveGame();
+    updateHeader();
+  }
+}
+
+function updateHeader() {
+  document.getElementById('coins-display').textContent = fmt(state.coins);
+  document.getElementById('deck-count').textContent = state.deck.length;
+  document.getElementById('stage-display').textContent = state.currentStage;
+  document.getElementById('btn-prev-stage').disabled = state.currentStage <= 1;
+  document.getElementById('btn-next-stage').disabled = state.currentStage >= state.maxUnlockedStage || state.currentStage >= 1000;
+
+  const cLvl = state.castleLevel;
+  document.getElementById('castle-lvl').textContent = cLvl;
+  document.getElementById('castle-hp').textContent = fmt(getCastleMaxHP(cLvl));
+
+  const btnCastle = document.getElementById('btn-upg-castle');
+  if (cLvl >= 1001) {
+    btnCastle.textContent = 'МАКС. УРОВЕНЬ';
+    btnCastle.disabled = true;
+  } else {
+    const cost = getUpgradeCost(0.001, cLvl);
+    btnCastle.innerHTML = `Улучшить Замок (Ур. ${cLvl + 1}) — ${fmt(cost)} 💰`;
+    btnCastle.disabled = state.coins < cost;
+  }
+}
+
+function upgradeCastle() {
+  if (state.castleLevel >= 1001) return;
+  const cost = getUpgradeCost(0.001, state.castleLevel);
+  if (state.coins >= cost) {
+    state.coins -= cost;
+    state.castleLevel++;
+    saveGame();
+    updateHeader();
+  }
+}
+
+function upgradeCard(cardId) {
+  const card = CARDS_DB.find(c => c.id === cardId);
+  const lvl = state.levels[cardId];
+  if (lvl >= 1001) return;
+  const cost = getUpgradeCost(RARITY_BASE_COST[card.rarity], lvl);
+  if (state.coins >= cost) {
+    state.coins -= cost;
+    state.levels[cardId]++;
+    saveGame();
+    renderDeckScreen();
+  }
+}
+
+function toggleDeckCard(cardId) {
+  const idx = state.deck.indexOf(cardId);
+  if (idx !== -1) {
+    if (state.deck.length <= 1) { alert('В колоде должна остаться хотя бы 1 карта!'); return; }
+    state.deck.splice(idx, 1);
+  } else {
+    if (state.deck.length >= 8) { alert('Максимум 8 карт в колоде!'); return; }
+    state.deck.push(cardId);
+  }
+  saveGame();
+  renderDeckScreen();
+}
+
+function renderDeckScreen() {
+  updateHeader();
+  const activeContainer = document.getElementById('active-deck-container');
+  activeContainer.innerHTML = '';
+  for (let i = 0; i < 8; i++) {
+    const cardId = state.deck[i];
+    const slot = document.createElement('div');
+    if (cardId) {
+      const card = CARDS_DB.find(c => c.id === cardId);
+      const lvl = state.levels[cardId];
+      slot.style.cssText = `background: #131720; border: 2px solid ${RARITY_COLORS[card.rarity]}; border-radius: 10px; padding: 8px; text-align: center; cursor: pointer;`;
+      slot.onclick = () => toggleDeckCard(cardId);
+      slot.innerHTML = `
+        <div style="font-size:11px; color:var(--star); font-weight:800;">⭐ ${card.stars} | Ур.${lvl}</div>
+        <img src="${card.sprite}" style="width:54px; height:54px; object-fit:contain; margin:4px auto; display:block;">
+        <div style="font-size:12px; font-weight:700;">${card.name}</div>
+      `;
+    } else {
+      slot.style.cssText = `background: #131720; border: 2px dashed #334155; border-radius: 10px; height: 105px; display: flex; align-items: center; justify-content: center; color: #475569; font-size: 12px; font-weight: 700;`;
+      slot.textContent = 'Пустой слот';
+    }
+    activeContainer.appendChild(slot);
+  }
+
+  const allContainer = document.getElementById('all-cards-container');
+  allContainer.innerHTML = '';
+  CARDS_DB.forEach(card => {
+    const lvl = state.levels[card.id];
+    const inDeck = state.deck.includes(card.id);
+    const upgCost = getUpgradeCost(RARITY_BASE_COST[card.rarity], lvl);
+    const canUpg = lvl < 1001 && state.coins >= upgCost;
+
+    const el = document.createElement('div');
+    el.className = `card rarity-${card.rarity}`;
+    el.innerHTML = `
+      <div>
+        <div class="card-top">
+          <span class="star-cost">⭐ ${card.stars}</span>
+          <span class="card-lvl">Ур. ${lvl} / 1001</span>
+        </div>
+        <div class="card-img-box"><img src="${card.sprite}" alt="${card.name}"></div>
+        <div class="card-name">${card.name}</div>
+        <div class="card-rarity-label" style="color:${RARITY_COLORS[card.rarity]}">${card.rarity}</div>
+      </div>
+      <div class="card-actions">
+        <button class="btn-preview" onclick="openPreview('${card.id}')">🔍 Предпросмотр</button>
+        <button class="btn-deck-toggle ${inDeck ? 'in-deck' : ''}" onclick="toggleDeckCard('${card.id}')">${inDeck ? 'Убрать' : 'В колоду'}</button>
+        <button class="btn-card-upg" ${!canUpg ? 'disabled' : ''} onclick="upgradeCard('${card.id}')">${lvl >= 1001 ? 'МАКС' : `Улучшить: ${fmt(upgCost)}`}</button>
+      </div>
+    `;
+    allContainer.appendChild(el);
+  });
+}
+
+function openPreview(cardId) {
+  const card = CARDS_DB.find(c => c.id === cardId);
+  const lvl = state.levels[cardId];
+  const stats = getCardScaledStats(card, lvl);
+  document.getElementById('m-title').textContent = card.name;
+  document.getElementById('m-img').src = card.sprite;
+  document.getElementById('m-rarity').textContent = `Редкость: ${card.rarity}`;
+  document.getElementById('m-rarity').style.color = RARITY_COLORS[card.rarity];
+  document.getElementById('m-level').textContent = `Уровень: ${lvl} / 1001`;
+  document.getElementById('m-stars').textContent = `Стоимость: ${card.stars} ⭐`;
+  document.getElementById('m-desc').textContent = card.desc;
+
+  let rows = `<tr><td>❤️ HP</td><td>${fmt(stats.hp)}</td></tr>`;
+  rows += `<tr><td>⚔️ Урон</td><td>${fmt(stats.damage)}</td></tr>`;
+  rows += `<tr><td>🛡️ Броня</td><td>${fmt(stats.armor || 0)}</td></tr>`;
+  rows += `<tr><td>👟 Скорость</td><td>${fmt(card.speed)} кл/с</td></tr>`;
+  document.getElementById('m-stats').innerHTML = rows;
+  document.getElementById('preview-modal').classList.add('open');
+}
+function closePreview(e) {
+  if (!e || e.target.id === 'preview-modal') document.getElementById('preview-modal').classList.remove('open');
+}
+
+function switchScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  if (name === 'deck') {
+    battle.active = false;
+    socket.emit('cancel_search');
+    document.getElementById('deck-screen').classList.add('active');
+    renderDeckScreen();
+  } else {
+    document.getElementById('battle-screen').classList.add('active');
+  }
+}
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const FIELD_TILES = 18;
+const LEFT_CASTLE_X = 95;
+const RIGHT_CASTLE_X = 1105;
+const PLAYABLE_WIDTH = RIGHT_CASTLE_X - LEFT_CASTLE_X;
+const TILE_PX = PLAYABLE_WIDTH / FIELD_TILES;
+const LANE_Y = [95, 225, 355];
+
+let battle = {
+  active: false,
+  mode: 'campaign',
+  room: null,
+  role: 'p1',
+  stage: 1,
+  myCastleHP: 1000,
+  myCastleMaxHP: 1000,
+  enemyCastleHP: 1000,
+  enemyCastleMaxHP: 1000,
+  playerStars: 1,
+  enemyStars: 1,
+  selectedCardId: null,
+  units: [],
+  projectiles: [],
+  tracers: [],
+  botTimer: 2.0
+};
+
+function startCampaignBattle() {
+  if (state.deck.length === 0) { alert('Добавьте карты в колоду!'); return; }
+  battle.mode = 'campaign';
+  battle.role = 'p1';
+  battle.stage = state.currentStage;
+  initBattleSetup(`Кампания — Уровень ${battle.stage}`, state.castleLevel, battle.stage);
+}
+
+function findMultiplayerMatch() {
+  if (state.deck.length === 0) { alert('Добавьте карты в колоду!'); return; }
+  document.getElementById('battle-mode-title').textContent = 'Поиск соперника...';
+  switchScreen('battle');
+  battle.active = false;
+  socket.emit('find_match', { castleLevel: state.castleLevel });
+}
+
+socket.on('waiting_for_opponent', () => {
+  document.getElementById('battle-mode-title').textContent = 'Ожидание соперника в сети...';
+});
+
+socket.on('match_found', (data) => {
+  battle.mode = 'multiplayer';
+  battle.room = data.room;
+  battle.role = data.role;
+  const enemyCastleLvl = data.enemyData.castleLevel || 1;
+  initBattleSetup('Сетевой бой 1v1', state.castleLevel, enemyCastleLvl);
+});
+
+socket.on('opponent_spawn', (data) => {
+  const mirroredTileX = 18 - data.tileX;
+  spawnUnitInternal(data.cardId, 'enemy', data.lane, mirroredTileX, data.lvl, true);
+});
+
+function initBattleSetup(titleText, pLvl, eLvl) {
+  switchScreen('battle');
+  document.getElementById('battle-result').classList.remove('show');
+  document.getElementById('battle-mode-title').textContent = titleText;
+
+  battle.active = true;
+  battle.lastTime = performance.now();
+  battle.myCastleMaxHP = getCastleMaxHP(pLvl);
+  battle.myCastleHP = battle.myCastleMaxHP;
+  battle.enemyCastleMaxHP = getCastleMaxHP(eLvl);
+  battle.enemyCastleHP = battle.enemyCastleMaxHP;
+
+  battle.playerStars = 1;
+  battle.enemyStars = 1;
+  battle.selectedCardId = state.deck[0];
+  battle.units = [];
+  battle.projectiles = [];
+  battle.tracers = [];
+  battle.botTimer = 1.8;
+
+  document.getElementById('b-p-lvl').textContent = pLvl;
+  document.getElementById('b-e-lvl').textContent = eLvl;
+
+  renderBattleHand();
+  requestAnimationFrame(gameLoop);
+}
+
+function endBattle() { finishBattle(false); }
+
+function finishBattle(playerWon) {
+  if (!battle.active) return;
+  battle.active = false;
+  const resBox = document.getElementById('battle-result');
+  const titleEl = document.getElementById('result-title');
+  const rewEl = document.getElementById('result-reward');
+  const nextBtn = document.getElementById('btn-next-battle');
+
+  if (playerWon) {
+    titleEl.textContent = '🏆 ПОБЕДА!';
+    titleEl.style.color = '#4ade80';
+
+    let reward = 0;
+    if (battle.mode === 'campaign') {
+      reward = (10 * battle.stage) * Math.pow(1.02, state.castleLevel - 1);
+      if (battle.stage < 1000) {
+        state.maxUnlockedStage = Math.max(state.maxUnlockedStage, battle.stage + 1);
+        state.currentStage = battle.stage + 1;
+        nextBtn.style.display = 'inline-block';
+      } else {
+        nextBtn.style.display = 'none';
+      }
+    } else {
+      reward = Math.floor(Math.random() * (1000000 - 1000 + 1)) + 1000;
+      nextBtn.style.display = 'none';
+    }
+
+    state.coins += reward;
+    saveGame();
+    updateHeader();
+    rewEl.textContent = `Награда: +${fmt(reward)} 💰`;
+  } else {
+    titleEl.textContent = '💀 ПОРАЖЕНИЕ';
+    titleEl.style.color = '#f87171';
+    rewEl.textContent = 'Улучшите замок или карты!';
+    nextBtn.style.display = 'none';
+  }
+  resBox.classList.add('show');
+}
+
+function renderBattleHand() {
+  const container = document.getElementById('battle-hand');
+  container.innerHTML = '';
+  state.deck.forEach(cardId => {
+    const card = CARDS_DB.find(c => c.id === cardId);
+    const lvl = state.levels[cardId];
+    const canAfford = battle.playerStars >= card.stars;
+    const isSelected = battle.selectedCardId === cardId;
+
+    const el = document.createElement('div');
+    el.className = `hand-card ${isSelected ? 'selected' : ''} ${!canAfford ? 'disabled' : ''}`;
+    el.style.borderColor = RARITY_COLORS[card.rarity];
+    el.onclick = () => { battle.selectedCardId = cardId; renderBattleHand(); };
+    el.innerHTML = `
+      <div class="hand-card-cost">⭐ ${card.stars}</div>
+      <img src="${card.sprite}" alt="${card.name}">
+      <div class="hand-card-name">${card.name}</div>
+      <div style="font-size:10px; color:var(--gold);">Ур.${lvl}</div>
+    `;
+    container.appendChild(el);
+  });
+}
+
+function spawnCard(cardId, side, lane, tileX, lvl, emitNet = true) {
+  const card = CARDS_DB.find(c => c.id === cardId);
+  if (!card) return;
+
+  if (emitNet && battle.mode === 'multiplayer') {
+    socket.emit('spawn_unit', { room: battle.room, cardId, lane, tileX, lvl });
+  }
+
+  spawnUnitInternal(cardId, side, lane, tileX, lvl, true);
+}
+
+function spawnUnitInternal(cardId, side, lane, tileX, lvl, expandSpells) {
+  const card = CARDS_DB.find(c => c.id === cardId);
+  if (!card) return;
+
+  if (card.type === 'spell_spawn' && expandSpells) {
+    const baseUnit = CARDS_DB.find(u => u.id === card.spawnUnitId);
+    for (let l = 0; l < 3; l++) {
+      for (let i = 0; i < card.perLane; i++) {
+        const offset = side === 'player' ? (tileX - i * 0.55) : (tileX + i * 0.55);
+        createUnitInstance(baseUnit, side, l, Math.max(0.2, Math.min(17.8, offset)), lvl);
+      }
+    }
+  } else if (card.type === 'unit') {
+    createUnitInstance(card, side, lane, tileX, lvl);
+  }
+}
+
+function createUnitInstance(card, side, lane, tileX, lvl) {
+  const mult = getStatMultiplier(lvl);
+  const useEnemySprite = (side === 'enemy' && card.enemySprite);
+  const spriteSrc = useEnemySprite ? card.enemySprite : card.sprite;
+  const sW = useEnemySprite ? card.enemySpriteW : card.spriteW;
+  const sH = useEnemySprite ? card.enemySpriteH : card.spriteH;
+
+  const baseHeight = 64 * (card.scale || 1.0);
+  const aspect = sW / sH;
+  let drawH = baseHeight;
+  let drawW = baseHeight * aspect;
+  if (drawW > 135 * (card.scale || 1.0)) {
+    drawW = 135 * (card.scale || 1.0);
+    drawH = drawW / aspect;
+  }
+
+  battle.units.push({
+    id: card.id, name: card.name, side, lane, tileX,
+    hp: card.hp * mult, maxHp: card.hp * mult, damage: card.damage * mult,
+    armor: card.armor || 0, speed: card.speed, hitSpeed: card.hitSpeed,
+    firstHit: card.firstHit, range: card.range, cooldown: card.firstHit,
+    hasLockedTarget: false, sprite: spriteSrc, flipEnemy: (side === 'enemy' && !card.enemySprite),
+    drawW, drawH, projSprite: card.projSprite || null,
+    projW: card.projW || 28, projH: card.projH || 28, projScale: card.projScale || 0.75,
+    yellowTracer: !!card.yellowTracer
+  });
+}
+
+canvas.addEventListener('click', (e) => {
+  if (!battle.active || !battle.selectedCardId) return;
+  const card = CARDS_DB.find(c => c.id === battle.selectedCardId);
+  if (!card || battle.playerStars < card.stars) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  const clickX = (e.clientX - rect.left) * scaleX;
+  const clickY = (e.clientY - rect.top) * scaleY;
+
+  let lane = 1;
+  if (clickY < 160) lane = 0;
+  else if (clickY > 290) lane = 2;
+
+  let tileX = (clickX - LEFT_CASTLE_X) / TILE_PX;
+  tileX = Math.max(0.5, Math.min(8.5, tileX));
+
+  battle.playerStars -= card.stars;
+  spawnCard(card.id, 'player', lane, tileX, state.levels[card.id], true);
+  renderBattleHand();
+});
+
+function gameLoop(now) {
+  if (!battle.active) return;
+  const dt = Math.min(0.05, (now - battle.lastTime) / 1000);
+  battle.lastTime = now;
+
+  updateBattle(dt);
+  drawBattle();
+  requestAnimationFrame(gameLoop);
+}
+
+function applyDamage(targetUnit, rawDamage) {
+  const reduction = Math.min(0.99, ((targetUnit.armor || 0) * 10) / 100);
+  targetUnit.hp -= rawDamage * (1 - reduction);
+}
+
+function updateBattle(dt) {
+  const prevInt = Math.floor(battle.playerStars);
+  battle.playerStars = Math.min(15, battle.playerStars + dt / 2.7);
+  if (Math.floor(battle.playerStars) !== prevInt) renderBattleHand();
+
+  document.getElementById('b-stars').textContent = fmt(Math.floor(battle.playerStars * 10) / 10);
+  document.getElementById('b-stars-fill').style.width = `${(battle.playerStars / 15) * 100}%`;
+
+  if (battle.mode === 'campaign') {
+    battle.botTimer -= dt;
+    if (battle.botTimer <= 0) {
+      battle.botTimer = 1.4 + Math.random() * 1.5;
+      const affordable = CARDS_DB.filter(c => c.stars <= battle.enemyStars);
+      if (affordable.length > 0) {
+        const chosen = affordable[Math.floor(Math.random() * affordable.length)];
+        battle.enemyStars -= chosen.stars;
+        spawnCard(chosen.id, 'enemy', Math.floor(Math.random() * 3), 17.3 - Math.random() * 2.5, battle.stage, false);
+      }
+    }
+    battle.enemyStars = Math.min(15, battle.enemyStars + dt / 2.7);
+  }
+
+  for (let u of battle.units) {
+    if (u.hp <= 0) continue;
+
+    let target = null, minDist = Infinity;
+    for (let other of battle.units) {
+      if (other.hp <= 0 || other.side === u.side || other.lane !== u.lane) continue;
+      const dist = Math.abs(other.tileX - u.tileX);
+      if (dist < minDist) { minDist = dist; target = other; }
+    }
+
+    const castleTile = u.side === 'player' ? 18 : 0;
+    const distToCastle = Math.abs(castleTile - u.tileX);
+    let inRangeUnit = target && minDist <= u.range;
+    let inRangeCastle = distToCastle <= u.range;
+
+    if (inRangeUnit || inRangeCastle) {
+      if (!u.hasLockedTarget) { u.hasLockedTarget = true; u.cooldown = u.firstHit; }
+      u.cooldown -= dt;
+      if (u.cooldown <= 0) {
+        u.cooldown = u.hitSpeed;
+        const targetTileX = inRangeUnit ? target.tileX : castleTile;
+        if (u.projSprite) {
+          battle.projectiles.push({
+            side: u.side, lane: u.lane, tileX: u.tileX, targetTileX,
+            targetUnit: inRangeUnit ? target : null, damage: u.damage, speed: 14,
+            sprite: u.projSprite, w: u.projW, h: u.projH, scale: u.projScale
+          });
+        } else {
+          if (inRangeUnit) applyDamage(target, u.damage);
+          else {
+            if (u.side === 'player') battle.enemyCastleHP -= u.damage;
+            else battle.myCastleHP -= u.damage;
+          }
+        }
+      }
+    } else {
+      u.hasLockedTarget = false;
+      if (u.speed > 0) {
+        const dir = u.side === 'player' ? 1 : -1;
+        u.tileX += dir * u.speed * dt;
+        u.tileX = Math.max(0, Math.min(18, u.tileX));
+      }
+    }
+  }
+
+  for (let p of battle.projectiles) {
+    const dir = p.targetTileX >= p.tileX ? 1 : -1;
+    p.tileX += dir * p.speed * dt;
+    if ((dir === 1 && p.tileX >= p.targetTileX) || (dir === -1 && p.tileX <= p.targetTileX)) {
+      p.done = true;
+      if (p.targetUnit && p.targetUnit.hp > 0) applyDamage(p.targetUnit, p.damage);
+      else if (!p.targetUnit) {
+        if (p.side === 'player') battle.enemyCastleHP -= p.damage;
+        else battle.myCastleHP -= p.damage;
+      }
+    }
+  }
+
+  battle.units = battle.units.filter(u => u.hp > 0);
+  battle.projectiles = battle.projectiles.filter(p => !p.done);
+
+  document.getElementById('b-p-hp').textContent = fmt(Math.max(0, battle.myCastleHP));
+  document.getElementById('b-e-hp').textContent = fmt(Math.max(0, battle.enemyCastleHP));
+
+  if (battle.enemyCastleHP <= 0) finishBattle(true);
+  else if (battle.myCastleHP <= 0) finishBattle(false);
+}
+
+function drawBattle() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const laneColors = ['#1e293b', '#263349', '#1e293b'];
+  for (let l = 0; l < 3; l++) {
+    ctx.fillStyle = laneColors[l];
+    ctx.fillRect(0, l * 150, canvas.width, 150);
+    ctx.strokeStyle = '#334155'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(0, l * 150 + 150); ctx.lineTo(canvas.width, l * 150 + 150); ctx.stroke();
+  }
+
+  ctx.font = '74px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('🏰', 48, 225); ctx.fillText('🏰', 1152, 225);
+
+  drawCastleBar(48, 165, battle.myCastleHP, battle.myCastleMaxHP, '#4ade80');
+  drawCastleBar(1152, 165, battle.enemyCastleHP, battle.enemyCastleMaxHP, '#f87171');
+
+  const sortedUnits = [...battle.units].sort((a, b) => a.lane - b.lane);
+  for (let u of sortedUnits) {
+    const px = LEFT_CASTLE_X + u.tileX * TILE_PX;
+    const py = LANE_Y[u.lane] + 25;
+    const img = IMAGES[u.sprite];
+
+    ctx.save();
+    ctx.translate(px, py);
+    if (u.flipEnemy) ctx.scale(-1, 1);
+    if (img && img.complete && img.naturalWidth > 0) {
+      ctx.drawImage(img, -u.drawW / 2, -u.drawH, u.drawW, u.drawH);
+    } else {
+      ctx.fillStyle = u.side === 'player' ? '#3b82f6' : '#ef4444';
+      ctx.fillRect(-20, -50, 40, 50);
+    }
+    ctx.restore();
+
+    const barW = 42;
+    const ratio = Math.max(0, u.hp / u.maxHp);
+    ctx.fillStyle = '#0f172a'; ctx.fillRect(px - barW / 2, py - u.drawH - 10, barW, 5);
+    ctx.fillStyle = u.side === 'player' ? '#4ade80' : '#f87171'; ctx.fillRect(px - barW / 2, py - u.drawH - 10, barW * ratio, 5);
+  }
+
+  for (let p of battle.projectiles) {
+    const px = LEFT_CASTLE_X + p.tileX * TILE_PX;
+    const py = LANE_Y[p.lane] - 12;
+    const img = IMAGES[p.sprite];
+    const normH = 26 * p.scale;
+    const drawH = normH;
+    const drawW = normH * (p.w / p.h);
+
+    ctx.save();
+    ctx.translate(px, py);
+    if (p.side === 'enemy') ctx.scale(-1, 1);
+    if (img && img.complete && img.naturalWidth > 0) {
+      ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
+    } else {
+      ctx.fillStyle = '#fde047'; ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+
+function drawCastleBar(x, y, hp, maxHp, color) {
+  const w = 76, h = 8, ratio = Math.max(0, hp / maxHp);
+  ctx.fillStyle = '#0f172a'; ctx.fillRect(x - w / 2, y, w, h);
+  ctx.fillStyle = color; ctx.fillRect(x - w / 2, y, w * ratio, h);
+}
+
+renderDeckScreen();
+</script>
+</body>
+</html>
